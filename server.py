@@ -1,5 +1,6 @@
 from threading import Thread
 from SecureSocketService import Socket
+from socket import error as socket_error
 
 
 class Server(Socket):
@@ -8,17 +9,23 @@ class Server(Socket):
         self.socket.bind((host, port))
         self.socket.listen(5)
         self.service_id = service_id
+        self.command_suffix = "!"
+        self.commands = {"help": self.command_help, "players list": self.command_players_list}
         self.clients = dict()
         Thread(target=self.connexion).start()
 
     def connexion(self):
         while True:
-            c, adress = self.connect_client(self.socket)
-            name = self.client_name(c)
-            if name:
-                self.clients[name] = c
-                self.broadcast(f"{name} is online !")
-                Thread(target=self.listen_client, args=(name,)).start()
+            try:
+                c, address = self.connect_client(self.socket)
+            except socket_error:
+                continue
+            else:
+                name = self.client_name(c)
+                if name:
+                    self.clients[name] = c
+                    self.broadcast(f"{name} is online !")
+                    Thread(target=self.listen_client, args=(name,)).start()
 
     def client_name(self, sock):
         while True:
@@ -32,7 +39,7 @@ class Server(Socket):
                     name = None
                 else:
                     break
-            except:
+            except socket_error:
                 name = None
                 break
         return name
@@ -42,24 +49,61 @@ class Server(Socket):
             try:
                 data = self.receive(self.clients[name])
                 assert data.lower() != "quit"
-            except:
-                self.send(self.clients[name], "quit")
-                self.clients[name].close()
-                del self.clients[name]
-                self.broadcast(f"{name} is offline !")
+            except (socket_error, AssertionError):
+                self.client_quit(name)
                 break
             else:
-                Thread(target=self.broadcast, args=(f"{name}: {data}", name)).start()
+                if not self.command(data, name):
+                    Thread(target=self.broadcast, args=(f"{name}: {data}", name)).start()
 
-    def broadcast(self, message, author = None):
+    def broadcast(self, message, author=None):
         print(message)
         for i in self.clients:
             if i == author:
                 continue
             try:
                 self.send(self.clients[i], message)
-            except:
-                pass
+            except socket_error:
+                continue
+
+    def client_quit(self, name):
+        try:
+            self.send(self.clients[name], "quit")
+            self.clients[name].close()
+        except socket_error:
+            pass
+        finally:
+            del self.clients[name]
+            self.broadcast(f"{name} is offline !")
+
+    def command(self, command, author):
+        command = command.lower()
+        if (command[:1] == self.command_suffix) and (command[1:] in self.commands):
+            command = command[1:]
+        elif command[:1] == self.command_suffix:
+            command = "help"
+        else:
+            return False
+
+        try:
+            print(f"{author} use command {command}")
+            self.commands[command](author)
+        except socket_error:
+            self.client_quit(author)
+        finally:
+            return True
+
+    def command_help(self, author):
+        message = "[Help]"
+        for i in self.commands:
+            message += "\n- " + i
+        self.send(self.clients[author], message)
+
+    def command_players_list(self, author):
+        message = f"[Players list | {len(self.clients)} online]"
+        for i in self.clients:
+            message += "\n- " + i
+        self.send(self.clients[author], message)
 
 
 if __name__ == "__main__":
