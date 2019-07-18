@@ -10,20 +10,18 @@ class Client(Socket):
         self.service_id = service_id
         print("Connecting...")
         self.connect_server(host, port)
-        Thread(target=self.receive_server).start()
-        Thread(target=self.send_input).start()
 
     def receive_server(self):
-        while True:
-            try:
-                data = self.receive(self.socket)
-            except socket_error:
+        try:
+            data = self.receive(self.socket)
+        except socket_error:
+            self.quit()
+            return False
+        else:
+            if data.lower() == "quit":
                 self.quit()
-            else:
-                if data.lower() == "quit":
-                    self.quit()
-                    break
-                print(data)
+                return False
+            return data
 
     def send_server(self, data):
         try:
@@ -38,6 +36,14 @@ class Client(Socket):
             if data.lower() == "quit":
                 break
 
+    def receive_print(self):
+        while True:
+            message = self.receive_server()
+            if message:
+                print(message)
+            else:
+                break
+
     def quit(self):
         try:
             self.socket.close()
@@ -49,4 +55,6 @@ class Client(Socket):
 
 
 if __name__ == "__main__":
-    Client("localhost", 3621)
+    client = Client("localhost", 3621)
+    Thread(target=client.receive_print).start()
+    Thread(target=client.send_input).start()

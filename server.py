@@ -5,25 +5,29 @@ from socket import error as socket_error
 
 class Server(Socket):
     def __init__(self, host: str = "localhost", port: int = 3621, service_id: int = 2):
+        print("Server start")
         super().__init__()
         self.socket.bind((host, port))
         self.socket.listen(5)
         self.service_id = service_id
         self.command_suffix = "!"
+        self.welcom_msg = "Welcom ! Type \"!help\" to see commands and \"quit\" to exit"
         self.commands = {"help": self.command_help, "players list": self.command_players_list}
         self.clients = dict()
+        print("Wait for connexion...")
         Thread(target=self.connexion).start()
 
     def connexion(self):
         while True:
             try:
                 c, address = self.connect_client(self.socket)
-            except socket_error:
+            except (socket_error, ConnectionError):
                 continue
             else:
                 name = self.client_name(c)
                 if name:
                     self.clients[name] = c
+                    self.send(self.clients[name], self.welcom_msg)
                     self.broadcast(f"{name} is online !")
                     Thread(target=self.listen_client, args=(name,)).start()
 
@@ -54,13 +58,11 @@ class Server(Socket):
                 break
             else:
                 if not self.command(data, name):
-                    Thread(target=self.broadcast, args=(f"{name}: {data}", name)).start()
+                    Thread(target=self.broadcast, args=(f"{name}: {data}",)).start()
 
-    def broadcast(self, message, author=None):
+    def broadcast(self, message):
         print(message)
         for i in self.clients:
-            if i == author:
-                continue
             try:
                 self.send(self.clients[i], message)
             except socket_error:
