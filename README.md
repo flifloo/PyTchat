@@ -1,3 +1,5 @@
+![logo](https://flifloo.fr/images/PyTchat.png)
+
 <h1>PyTchat </h1>
 
 A simple Python tchat client
