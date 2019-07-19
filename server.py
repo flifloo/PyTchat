@@ -10,8 +10,8 @@ class Server(Socket):
         self.socket.bind((host, port))
         self.socket.listen(5)
         self.service_id = service_id
-        self.command_suffix = "!"
-        self.welcom_msg = "Welcom ! Type \"!help\" to see commands and \"quit\" to exit"
+        self.command_suffix = "/"
+        self.welcom_msg = "Welcom ! Type \"/help\" to see commands and \"quit\" to exit"
         self.commands = {"help": self.command_help, "players list": self.command_players_list}
         self.clients = dict()
         print("Wait for connexion...")

@@ -1,4 +1,4 @@
-from tkinter import Tk, Frame, Scrollbar, Label, Text, Button, Entry, StringVar, IntVar, LEFT, RIGHT, BOTH, Y, END
+from tkinter import Tk, Frame, Scrollbar, Label, Text, Button, Entry, StringVar, IntVar
 from tkinter.messagebox import showerror
 from client import Client
 from threading import Thread
@@ -29,7 +29,9 @@ def receive():
             break
         if msg[-1:] != "\n":
             msg += "\n"
-        chat_message.insert(END, msg)
+        chat_message.configure(state="normal")
+        chat_message.insert("end", msg)
+        chat_message.configure(state="disable")
 
 
 def send(event=None):
@@ -57,9 +59,9 @@ tchat.protocol("WM_DELETE_WINDOW", on_closing)
 chat = Frame(tchat)
 chat.pack()
 scrollbar = Scrollbar(chat)
-scrollbar.pack(side=RIGHT, fill=Y)
-chat_message = Text(chat, height=15, width=50, yscrollcommand=scrollbar.set)
-chat_message.pack(side=LEFT, fill=BOTH)
+scrollbar.pack(side="right", fill="y")
+chat_message = Text(chat, height=15, width=50, yscrollcommand=scrollbar.set, state="disable")
+chat_message.pack(side="left", fill="both")
 Thread(target=receive).start()
 
 entry = Frame(tchat)
