@@ -11,7 +11,7 @@ class Server(Socket):
         self.socket.listen(5)
         self.service_id = service_id
         self.command_suffix = "/"
-        self.welcom_msg = "Welcom ! Type \"/help\" to see commands and \"quit\" to exit"
+        self.welcome_msg = "Welcome ! Type \"/help\" to see commands and \"quit\" to exit"
         self.commands = {"help": self.command_help, "players list": self.command_players_list}
         self.clients = dict()
         print("Wait for connexion...")
@@ -27,7 +27,7 @@ class Server(Socket):
                 name = self.client_name(c)
                 if name:
                     self.clients[name] = c
-                    self.send(self.clients[name], self.welcom_msg)
+                    self.send(self.clients[name], self.welcome_msg)
                     self.broadcast(f"{name} is online !")
                     Thread(target=self.listen_client, args=(name,)).start()
 

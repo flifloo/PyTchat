@@ -17,7 +17,7 @@ def start():
             global client
             client = Client(host.get(), port.get())
         except ConnectionError:
-            showerror("Error", "can't connect tu server !")
+            showerror("Error", "can't connect to server !")
         else:
             login.destroy()
 
