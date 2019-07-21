@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, RLock
 from SecureSocketService import Socket
 from socket import error as socket_error
 
@@ -14,6 +14,7 @@ class Server(Socket):
         self.welcome_msg = "Welcome ! Type \"/help\" to see commands and \"quit\" to exit"
         self.commands = {"help": self.command_help, "players list": self.command_players_list}
         self.clients = dict()
+        self.clients_lock = RLock()
         print("Wait for connexion...")
         Thread(target=self.connexion).start()
 
@@ -26,8 +27,9 @@ class Server(Socket):
             else:
                 name = self.client_name(c)
                 if name:
-                    self.clients[name] = c
-                    self.send(self.clients[name], self.welcome_msg)
+                    with self.clients_lock:
+                        self.clients[name] = c
+                    self.send(c, self.welcome_msg)
                     self.broadcast(f"{name} is online !")
                     Thread(target=self.listen_client, args=(name,)).start()
 
@@ -36,13 +38,14 @@ class Server(Socket):
             try:
                 self.send(sock, "Your name ?")
                 name = self.receive(sock)
-                if name in self.clients:
-                    self.send(sock, "Name already taken !")
-                elif name.lower() == "quit":
-                    sock.close()
-                    name = None
-                else:
-                    break
+                with self.clients_lock:
+                    if name in self.clients:
+                        self.send(sock, "Name already taken !")
+                    elif name.lower() == "quit":
+                        sock.close()
+                        name = None
+                    else:
+                        break
             except socket_error:
                 name = None
                 break
@@ -62,21 +65,23 @@ class Server(Socket):
 
     def broadcast(self, message):
         print(message)
-        for i in self.clients:
-            try:
-                self.send(self.clients[i], message)
-            except socket_error:
-                continue
+        with self.clients_lock:
+            for i in self.clients:
+                try:
+                    self.send(self.clients[i], message)
+                except socket_error:
+                    continue
 
     def client_quit(self, name):
-        try:
-            self.send(self.clients[name], "quit")
-            self.clients[name].close()
-        except socket_error:
-            pass
-        finally:
-            del self.clients[name]
-            self.broadcast(f"{name} is offline !")
+        with self.clients_lock:
+            try:
+                self.send(self.clients[name], "quit")
+                self.clients[name].close()
+            except socket_error:
+                pass
+            finally:
+                del self.clients[name]
+                self.broadcast(f"{name} is offline !")
 
     def command(self, command, author):
         command = command.lower()
@@ -99,13 +104,15 @@ class Server(Socket):
         message = "[Help]"
         for i in self.commands:
             message += "\n- " + i
-        self.send(self.clients[author], message)
+        with self.clients_lock:
+            self.send(self.clients[author], message)
 
     def command_players_list(self, author):
-        message = f"[Players list | {len(self.clients)} online]"
-        for i in self.clients:
-            message += "\n- " + i
-        self.send(self.clients[author], message)
+        with self.clients_lock:
+            message = f"[Players list | {len(self.clients)} online]"
+            for i in self.clients:
+                message += "\n- " + i
+            self.send(self.clients[author], message)
 
 
 if __name__ == "__main__":
