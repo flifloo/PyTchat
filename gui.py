@@ -1,14 +1,24 @@
-from tkinter import Tk, Frame, Scrollbar, Label, Text, Button, Entry, StringVar, IntVar
-from tkinter.messagebox import showerror
+from tkinter import Tk, Frame, Scrollbar, Label, Text, Button, Entry, StringVar, IntVar, TclError
+from tkinter.messagebox import showerror, showwarning
 from client import Client
 from threading import Thread
+from socket import error as socket_error
+
+destroy = False
 
 
 def on_closing():
+    global destroy
+    destroy = True
     try:
-        client.quit()
-    except NameError:
+        client.send_server("quit")
+    except TclError:
         pass
+    finally:
+        try:
+            tchat.destroy()
+        except TclError:
+            pass
 
 
 def start():
@@ -16,29 +26,47 @@ def start():
         try:
             global client
             client = Client(host.get(), port.get())
-        except ConnectionError:
-            showerror("Error", "can't connect to server !")
+        except (socket_error, ConnectionError):
+            showerror("Error", "Can't connect to server !")
         else:
             login.destroy()
 
 
 def receive():
     while True:
-        msg = client.receive_server()
-        if msg.lower() == "quit":
+        try:
+            msg = client.receive_server()
+            if msg.lower() == "quit" or not msg:
+                raise ConnectionError("Client quit")
+        except (socket_error, ConnectionError, AttributeError):
+            show_message("""}------------------------------{
+/!\\ [Receive system offline] /!\\
+Press Enter to exit
+}------------------------------{""")
             break
-        if msg[-1:] != "\n":
-            msg += "\n"
-        chat_message.configure(state="normal")
-        chat_message.insert("end", msg)
-        chat_message.configure(state="disable")
+        else:
+            show_message(msg)
 
 
 def send(event=None):
-    client.send_server(message.get())
-    if message.get().lower() == "quit":
-        tchat.destroy()
-    message.set("")
+    try:
+        client.send_server(message.get())
+        if not receive_thread.is_alive() or message.get().lower() == "quit":
+            raise ConnectionError("Client quit")
+    except (socket_error, ConnectionError):
+        showwarning("Disconnected", "Disconnected from server")
+        on_closing()
+    else:
+        message.set("")
+
+
+def show_message(msg):
+    if msg[-1:] != "\n":
+        msg += "\n"
+    if not destroy:
+        chat_message.configure(state="normal")
+        chat_message.insert("end", msg)
+        chat_message.configure(state="disable")
 
 
 login = Tk()
@@ -62,7 +90,8 @@ scrollbar = Scrollbar(chat)
 scrollbar.pack(side="right", fill="y")
 chat_message = Text(chat, height=15, width=50, yscrollcommand=scrollbar.set, state="disable")
 chat_message.pack(side="left", fill="both")
-Thread(target=receive).start()
+receive_thread = Thread(target=receive)
+receive_thread.start()
 
 entry = Frame(tchat)
 entry.pack()

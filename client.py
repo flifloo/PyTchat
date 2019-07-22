@@ -1,6 +1,5 @@
 from threading import Thread
 from SecureSocketService import Socket
-from sys import exit
 from socket import error as socket_error
 
 
@@ -8,7 +7,6 @@ class Client(Socket):
     def __init__(self, host: str, port: int, service_id: int = 2):
         super().__init__()
         self.service_id = service_id
-        print("Connecting...")
         self.connect_server(host, port)
 
     def receive_server(self):
@@ -49,9 +47,6 @@ class Client(Socket):
             self.socket.close()
         except socket_error:
             pass
-        finally:
-            print("Disconnected")
-            exit()
 
 
 if __name__ == "__main__":

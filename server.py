@@ -55,8 +55,9 @@ class Server(Socket):
         while True:
             try:
                 data = self.receive(self.clients[name])
-                assert data.lower() != "quit"
-            except (socket_error, AssertionError):
+                if data.lower() == "quit":
+                    raise ConnectionError("Client quit")
+            except (socket_error, ConnectionError):
                 self.client_quit(name)
                 break
             else:
