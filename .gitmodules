@@ -1,0 +1,3 @@
+[submodule "SecureSocketService"]
+	path = SecureSocketService
+	url = https://github.com/flifloo/SecureSocketService.git
